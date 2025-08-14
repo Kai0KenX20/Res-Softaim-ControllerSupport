@@ -131,6 +131,7 @@ class App(customtkinter.CTk):
                 config_file.write(f"gameName = '{game_name_entry.get()}'\n")
                 config_file.write(f"aaMovementAmp = {float(aa_movement_amp_entry.get())}\n")
                 config_file.write(f"aaMovementAmpHipfire = {float(aa_movement_amp_hipfire_entry.get())}\n")
+                config_file.write(f"smoothingFactor = {float(smoothing_factor_entry.get())}\n")
                 config_file.write(f"confidence = {float(confidence_entry.get())}\n")
                 config_file.write(f"fovCircleSize = {fov_circle_size_entry.get()}\n")
                 config_file.write(f"aaQuitKey = '{aa_quit_key_entry.get()}'\n")
@@ -258,6 +259,7 @@ class App(customtkinter.CTk):
         jitterStrength_entry = create_setting_widget(self.third_frame, "Jitter Strength", 7, 0)
         jitterX_value_box = create_setting_widget(self.third_frame, "Jitter X Range", 8, 0)
         jitterY_value_box = create_setting_widget(self.third_frame, "Jitter Y Range", 9, 0)
+        smoothing_factor_entry = create_setting_widget(self.third_frame, "Smoothing Factor", 10, 0)
         auto_game_detection_switch = create_setting_widget(self.third_frame, "Automatic Game Detection", 1, 2, widget_type=customtkinter.CTkSwitch, text="")
         random_body_part_switch = create_setting_widget(self.third_frame, "Randomized Body Part", 2, 2, widget_type=customtkinter.CTkSwitch, text="")
         triggerBot_switch = create_setting_widget(self.third_frame, "Trigger Bot", 3, 2, widget_type=customtkinter.CTkSwitch, text="")
@@ -333,6 +335,7 @@ class App(customtkinter.CTk):
         set_initial_values(triggerbot_actdistance_entry, config.triggerbot_actdistance)
         set_initial_values(overlayColor_entry, config.overlayColor)
         set_initial_values(jitterStrength_entry, config.jitterStrength)
+        set_initial_values(smoothing_factor_entry, config.smoothingFactor)
 
         set_switch(use_mask_switch, config.useMask)
         set_switch(auto_game_detection_switch, config.autoGameDetection)

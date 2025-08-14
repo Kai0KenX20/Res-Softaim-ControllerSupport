@@ -33,3 +33,4 @@ toggleAimbot = True
 activationKey = 'VK_MENU'
 showStatus = True
 targetLockRadius = 50
+smoothingFactor = 0.5

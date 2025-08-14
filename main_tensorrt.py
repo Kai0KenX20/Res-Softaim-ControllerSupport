@@ -8,7 +8,7 @@ import pandas as pd
 from utils.general import (cv2, non_max_suppression, xyxy2xywh)
 from models.common import DetectMultiBackend
 import cupy as cp
-from config import jitterStrength, showStatus, activationKey, toggleAimbot, showTracers, showBoxes, overlayColor, showFOVCircle, screenShotHeight, screenShotWidth, aaMovementAmp, aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay, jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight, maskWidth, aaQuitKey, confidence, cpsDisplay, visuals, centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart, targetLockRadius
+from config import jitterStrength, showStatus, activationKey, toggleAimbot, showTracers, showBoxes, overlayColor, showFOVCircle, screenShotHeight, screenShotWidth, aaMovementAmp, aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay, jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight, maskWidth, aaQuitKey, confidence, cpsDisplay, visuals, centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart, targetLockRadius, smoothingFactor
 import gameSelection
 import sys
 import random
@@ -35,6 +35,15 @@ def generate_jitter(scale=jitterStrength):
 
 def is_right_mouse_button_pressed():
     return win32api.GetKeyState(win32con.VK_RBUTTON) < 0
+
+def apply_smoothing(move, amp):
+    """Interpolate cursor movement using the configured smoothing factor."""
+    curr_x, curr_y = win32api.GetCursorPos()
+    target_x = curr_x + int(move[0] * amp)
+    target_y = curr_y + int(move[1] * amp)
+    smoothed_x = curr_x + int((target_x - curr_x) * smoothingFactor)
+    smoothed_y = curr_y + int((target_y - curr_y) * smoothingFactor)
+    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, smoothed_x - curr_x, smoothed_y - curr_y, 0, 0)
 
 def calculate_offsets(screenShotWidth, screenShotHeight):
     if screenShotWidth == 320 and screenShotHeight == 320:
@@ -251,16 +260,12 @@ def main():
                         mouseMove[0] = int(mouseMove[0] + jitter_x)
                         mouseMove[1] = int(mouseMove[1] + jitter_y)
 
-                        # Move mouse
+                        # Move mouse with smoothing
                         if is_right_mouse_button_pressed():
-                            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE,
-                            int(mouseMove[0] * aaMovementAmp),
-                            int(mouseMove[1] * aaMovementAmp), 0, 0)
+                            apply_smoothing(mouseMove, aaMovementAmp)
                         else:
                             # If hipfire then hipfire modifier
-                            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE,
-                            int(mouseMove[0] * aaMovementAmpHipfire),
-                            int(mouseMove[1] * aaMovementAmpHipfire), 0, 0)
+                            apply_smoothing(mouseMove, aaMovementAmpHipfire)
                          
                     
 
