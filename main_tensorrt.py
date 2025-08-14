@@ -8,11 +8,23 @@ import pandas as pd
 from utils.general import (cv2, non_max_suppression, xyxy2xywh)
 from models.common import DetectMultiBackend
 import cupy as cp
-from config import jitterStrength, showStatus, activationKey, toggleAimbot, showTracers, showBoxes, overlayColor, showFOVCircle, screenShotHeight, screenShotWidth, aaMovementAmp, aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay, jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight, maskWidth, aaQuitKey, confidence, cpsDisplay, visuals, centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart, targetLockRadius
+from config import (jitterStrength, showStatus, activationKey, toggleAimbot,
+                    showTracers, showBoxes, overlayColor, showFOVCircle,
+                    screenShotHeight, screenShotWidth, aaMovementAmp,
+                    aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay,
+                    jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight,
+                    maskWidth, aaQuitKey, confidence, cpsDisplay, visuals,
+                    centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart,
+                    targetLockRadius, controllerSupport)
 import gameSelection
 import sys
 import random
 import pyMeow as pm
+import threading
+try:
+    from inputs import get_gamepad
+except ImportError:  # pragma: no cover - optional controller support
+    get_gamepad = None
 
 body_part_offsets = {
     "Head": 0.37,
@@ -27,6 +39,29 @@ def is_key_pressed(key):
     return win32api.GetAsyncKeyState(ord(key)) & 0x8000 != 0
 
 key_code = getattr(win32con, activationKey)
+
+# Track analog trigger states
+left_trigger_value = 0
+right_trigger_value = 0
+
+def controller_listener():
+    """Background thread that continually updates trigger values."""
+    global left_trigger_value, right_trigger_value
+    while True:
+        if get_gamepad is None:
+            break
+        events = get_gamepad()
+        for event in events:
+            if event.code == 'ABS_Z':
+                left_trigger_value = event.state
+            elif event.code == 'ABS_RZ':
+                right_trigger_value = event.state
+
+def is_left_trigger_pressed(threshold=30):
+    return left_trigger_value > threshold
+
+def is_right_trigger_pressed(threshold=30):
+    return right_trigger_value > threshold
 
 def generate_jitter(scale=jitterStrength):
     jitter_x = random.uniform(-jitterValueX, jitterValueX) * scale
@@ -89,6 +124,9 @@ def main():
     game_selection_result = gameSelection.gameSelection()
 
     camera, cWidth, cHeight = game_selection_result
+
+    if controllerSupport and get_gamepad is not None:
+        threading.Thread(target=controller_listener, daemon=True).start()
 
     # Used for forcing garbage collection
     count = 0
@@ -236,11 +274,9 @@ def main():
                 dist_from_center = np.sqrt(mouseMove[0]**2 + mouseMove[1]**2)
 
                 # Triggerbot
-                if triggerBot == True and abs(mouseMove[0]) <= triggerbot_actdistance and abs(mouseMove[1]) <= triggerbot_actdistance:
-                    # Press the mouse button
+                if triggerBot and abs(mouseMove[0]) <= triggerbot_actdistance and abs(mouseMove[1]) <= triggerbot_actdistance:
                     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
                     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-
 
                 # Check if the target is within the FOV circle
                 if dist_from_center <= fovCircleSize:
@@ -251,16 +287,13 @@ def main():
                         mouseMove[0] = int(mouseMove[0] + jitter_x)
                         mouseMove[1] = int(mouseMove[1] + jitter_y)
 
-                        # Move mouse
-                        if is_right_mouse_button_pressed():
-                            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE,
-                            int(mouseMove[0] * aaMovementAmp),
-                            int(mouseMove[1] * aaMovementAmp), 0, 0)
-                        else:
-                            # If hipfire then hipfire modifier
-                            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE,
-                            int(mouseMove[0] * aaMovementAmpHipfire),
-                            int(mouseMove[1] * aaMovementAmpHipfire), 0, 0)
+                        # Move aiming device using mouse
+                        ads = is_right_mouse_button_pressed() or (controllerSupport and is_left_trigger_pressed())
+                        amp = aaMovementAmp if ads else aaMovementAmpHipfire
+                        win32api.mouse_event(
+                            win32con.MOUSEEVENTF_MOVE,
+                            int(mouseMove[0] * amp),
+                            int(mouseMove[1] * amp), 0, 0)
                          
                     
 
