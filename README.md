@@ -97,4 +97,13 @@ Follow these sparkly steps to get your TensorRT ready for action! 🛠️✨
 
 If you've followed these steps, you should be all set with TensorRT! ⚙️🚀
 
-Dont forget to select your model in the menu!
+Place your `.pt`, `.onnx` or `.engine` model anywhere under the project root
+or inside the `models` directory—the configuration menu scans these paths
+recursively and enables the **Run Softaim** button only when a valid model is
+available. Use the **Refresh Models** button if you add files while the menu is
+open, and don't forget to pick a model before running!
+
+The aimbot now maintains a lock on the current detection, avoiding rapid
+switching when multiple targets are present. Adjust the `targetLockRadius`
+value in `config.py` to control how far a target can move before a new one is
+selected.

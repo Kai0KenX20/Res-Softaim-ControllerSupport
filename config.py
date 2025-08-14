@@ -32,3 +32,4 @@ overlayColor = '#FF0000'
 toggleAimbot = True
 activationKey = 'VK_MENU'
 showStatus = True
+targetLockRadius = 50

@@ -8,7 +8,7 @@ import pandas as pd
 from utils.general import (cv2, non_max_suppression, xyxy2xywh)
 from models.common import DetectMultiBackend
 import cupy as cp
-from config import jitterStrength, showStatus, activationKey, toggleAimbot, showTracers, showBoxes, overlayColor, showFOVCircle, screenShotHeight, screenShotWidth, aaMovementAmp, aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay, jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight, maskWidth, aaQuitKey, confidence, cpsDisplay, visuals, centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart
+from config import jitterStrength, showStatus, activationKey, toggleAimbot, showTracers, showBoxes, overlayColor, showFOVCircle, screenShotHeight, screenShotWidth, aaMovementAmp, aaTriggerBotKey, aaMovementAmpHipfire, realtimeOverlay, jitterValueX, jitterValueY, aaPauseKey, useMask, maskHeight, maskWidth, aaQuitKey, confidence, cpsDisplay, visuals, centerOfScreen, fovCircleSize, BodyPart, RandomBodyPart, targetLockRadius
 import gameSelection
 import sys
 import random
@@ -198,24 +198,27 @@ def main():
 
             # If there are people in the center bounding box
             if len(targets) > 0:
-                if (centerOfScreen):
-                    # Compute the distance from the center
-                    targets["dist_from_center"] = np.sqrt((targets.current_mid_x - center_screen[0])**2 + (targets.current_mid_y - center_screen[1])**2)
+                if last_mid_coord is not None:
+                    targets['dist_to_last'] = np.sqrt(
+                        (targets.current_mid_x - last_mid_coord[0])**2 +
+                        (targets.current_mid_y - last_mid_coord[1])**2)
+                    min_last_idx = targets['dist_to_last'].idxmin()
+                    if targets.loc[min_last_idx, 'dist_to_last'] <= targetLockRadius:
+                        chosen = targets.loc[min_last_idx]
+                    else:
+                        targets['dist_from_center'] = np.sqrt(
+                            (targets.current_mid_x - center_screen[0])**2 +
+                            (targets.current_mid_y - center_screen[1])**2)
+                        chosen = targets.loc[targets['dist_from_center'].idxmin()] if centerOfScreen else targets.iloc[0]
+                else:
+                    targets['dist_from_center'] = np.sqrt(
+                        (targets.current_mid_x - center_screen[0])**2 +
+                        (targets.current_mid_y - center_screen[1])**2)
+                    chosen = targets.loc[targets['dist_from_center'].idxmin()] if centerOfScreen else targets.iloc[0]
 
-                    # Sort the data frame by distance from center
-                    targets = targets.sort_values("dist_from_center")
-
-
-                # get last person coordinate if exist
-                if last_mid_coord:
-                    targets['last_mid_x'] = last_mid_coord[0]
-                    targets['last_mid_y'] = last_mid_coord[1]
-                    targets['dist'] = np.linalg.norm(
-                        targets.iloc[:, [0, 1]].values - targets.iloc[:, [4, 5]], axis=1)
-                    targets.sort_values(by="dist", ascending=False)
-
-                xMid = targets.iloc[0].current_mid_x
-                yMid = targets.iloc[0].current_mid_y
+                xMid = chosen.current_mid_x
+                yMid = chosen.current_mid_y
+                last_mid_coord = [xMid, yMid]
 
                 selected_body_part = BodyPart
                 random_body_part = RandomBodyPart
@@ -224,7 +227,7 @@ def main():
 
                 body_part_offset = body_part_offsets.get(selected_body_part, 0.30)
 
-                box_height = targets.iloc[0].height
+                box_height = chosen.height
                 offset = box_height * body_part_offset
 
                 mouseMove = [xMid - cWidth, (yMid - offset) - cHeight]

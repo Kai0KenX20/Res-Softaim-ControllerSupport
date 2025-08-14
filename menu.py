@@ -1,20 +1,49 @@
 import customtkinter
+from pathlib import Path
 import os
 from PIL import Image
 import subprocess
 from pyMeow import get_display_resolution
-import inputs
 from inputs import devices  # Updated import to use devices for detection
 
 displayResolution = get_display_resolution()
 
 def get_model_files():
-    return [f for f in os.listdir() if f.endswith(('.engine', '.pt', '.onnx'))]
+    """Return a sorted list of available model files.
+
+    Searches recursively in the repository root and ``models`` directory for
+    ``.engine``, ``.pt`` and ``.onnx`` files, returning their relative paths.
+    Automatically creates the ``models`` directory if it does not exist.
+    """
+    search_dirs = [Path("."), Path("models")]
+    extensions = (".engine", ".pt", ".onnx")
+    files = set()
+
+    for directory in search_dirs:
+        if directory == Path("models"):
+            directory.mkdir(exist_ok=True)
+        if directory.exists():
+            for ext in extensions:
+                for path in directory.rglob(f"*{ext}"):
+                    files.add(path.as_posix())
+
+    return sorted(files)
 
 def create_model_selector(parent, row, column, model_files, default_model):
-    customtkinter.CTkLabel(parent, text="Select Model").grid(row=row, column=column, pady=(10, 0), padx=(10, 0), sticky="w")
-    model_selector = customtkinter.CTkComboBox(parent, values=model_files)
-    model_selector.set(default_model)
+    customtkinter.CTkLabel(parent, text="Select Model").grid(
+        row=row, column=column, pady=(10, 0), padx=(10, 0), sticky="w"
+    )
+    if not model_files:
+        model_selector = customtkinter.CTkComboBox(
+            parent, values=["No model files found"], state="disabled"
+        )
+        model_selector.set("No model files found")
+    else:
+        model_selector = customtkinter.CTkComboBox(parent, values=model_files)
+        if default_model in model_files:
+            model_selector.set(default_model)
+        else:
+            model_selector.set(model_files[0])
     model_selector.grid(row=row, column=column + 1, pady=(10, 0), padx=(10, 10), sticky="w")
     return model_selector
 
@@ -64,8 +93,11 @@ class App(customtkinter.CTk):
         import config
 
         def run():
-            print("Started Running 'main_tensorrt.py'")
             selected_model = model_selector.get()
+            if not Path(selected_model).is_file():
+                print("No valid model selected.")
+                return
+            print("Started Running 'main_tensorrt.py'")
             subprocess.Popen(['python', 'main_tensorrt.py', selected_model])
             exit()
 
@@ -256,6 +288,26 @@ class App(customtkinter.CTk):
         aa_trigger_bot_key_entry = create_setting_widget(self.fifth_frame, "Trigger Bot Key", 7, 0)
         model_files = get_model_files()
         model_selector = create_model_selector(self.fifth_frame, 8, 0, model_files, config.selectedModel)
+
+        def refresh_models():
+            updated_files = get_model_files()
+            if not updated_files:
+                model_selector.configure(values=["No model files found"], state="disabled")
+                model_selector.set("No model files found")
+                self.run_button.configure(state="disabled")
+            else:
+                model_selector.configure(values=updated_files, state="normal")
+                if model_selector.get() not in updated_files:
+                    model_selector.set(updated_files[0])
+                self.run_button.configure(state="normal")
+
+        refresh_button = customtkinter.CTkButton(
+            self.fifth_frame, text="Refresh Models", command=refresh_models
+        )
+        refresh_button.grid(row=8, column=2, pady=(10, 0), padx=(10, 10), sticky="w")
+
+        if not model_files:
+            self.run_button.configure(state="disabled")
 
         # Create hardware frame
         self.sixth_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
