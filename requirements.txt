@@ -16,3 +16,4 @@ onnxruntime_directml
 bettercam
 pyserial
 customtkinter
+inputs
